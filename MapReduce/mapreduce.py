@@ -6,8 +6,9 @@ import re
 import zlib
 
 # Configuration
-INPUT_DIR = Path("input")
-OUTPUT_DIR = Path("output")
+BASE_DIR = Path(__file__).resolve().parent
+INPUT_DIR = BASE_DIR / "input"
+OUTPUT_DIR = BASE_DIR / "output"
 NUM_REDUCERS = 2
 
 
@@ -16,6 +17,7 @@ def mapper(file_path):
     with open(file_path, "r", encoding="utf-8") as file:
         text = file.read().lower()
 
+    # Extract words and numbers, ignoring punctuation
     words = re.findall(r"\b\w+\b", text)
 
     # Stage 2: Combine repeated words locally
@@ -29,7 +31,7 @@ def partition(word):
     return zlib.crc32(word.encode("utf-8")) % NUM_REDUCERS
 
 
-# Main function: run the MapReduce simulation
+# Main function
 def main():
     # Check the input directory
     if not INPUT_DIR.exists():
@@ -46,11 +48,15 @@ def main():
         print("Error: No .txt files found in the input folder.")
         return
 
+    print(f"Found {len(files)} input files:")
+    for path in files:
+        print(f"- {path.name}")
+
     # Stage 4: Map files in parallel
     with ProcessPoolExecutor() as executor:
         mapped_results = list(executor.map(mapper, files))
 
-    print("Mapping and combining completed!")
+    print("\nMapping and combining completed!")
 
     # Stage 5: Shuffle and group words by reducer
     partitions = [defaultdict(list) for _ in range(NUM_REDUCERS)]
@@ -81,10 +87,11 @@ def main():
                 total = sum(values)
                 file.write(f"{word}\t{total}\n")
 
-    print("MapReduce completed successfully!")
+    print("\nMapReduce completed successfully!")
     print(f"Input files processed: {len(files)}")
     print(f"Reducers used: {NUM_REDUCERS}")
-    print(f"Output directory: {OUTPUT_DIR.resolve()}")
+    print(f"Unique words counted: {sum(len(p) for p in shuffled)}")
+    print(f"Output directory: {OUTPUT_DIR}")
 
 
 if __name__ == "__main__":
